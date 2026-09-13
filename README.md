@@ -1,18 +1,22 @@
-# Sistema de Levantamiento Territorial
+# SLTM — Sistema de Levantamiento Territorial Móvil
 
-Aplicación web progresiva (PWA) para captura territorial georreferenciada desde celular y revisión en computadora.
+Aplicación web progresiva para captura territorial georreferenciada desde celular y revisión desde computadora.
 
-## Primera versión funcional
+## Versión 0.2
 
-- diseño responsive para teléfono y escritorio;
-- instalación como PWA;
-- captura de ubicación GPS de alta precisión disponible en navegador;
-- seguimiento continuo de recorrido;
-- observaciones puntuales georreferenciadas;
-- categorías iniciales: arbolado, drenaje, banquetas, anuncios, residuos, obras, predios, vialidad y vegetación;
-- almacenamiento local para trabajo de campo;
-- interfaz de sincronización preparada para una API posterior;
-- acceso a cámara mediante el selector nativo del dispositivo.
+- mapa cartográfico real con OpenStreetMap y Leaflet;
+- recorridos GPS persistentes como sesiones independientes;
+- pausa, reanudación y finalización de levantamientos;
+- filtrado básico de lecturas GPS de muy baja calidad;
+- distancia recorrida, duración, precisión media y número de puntos;
+- observaciones con categoría, prioridad, nota, coordenada y precisión;
+- evidencia fotográfica persistente en IndexedDB;
+- identificación de brigadista, brigada y dispositivo;
+- captura y almacenamiento local aun sin conexión;
+- exportación JSON y GeoJSON;
+- sincronización central preparada mediante `VITE_API_URL`, sin marcar datos como enviados hasta recibir confirmación real del servidor;
+- interfaz responsive para operación móvil y revisión en escritorio;
+- instalación como PWA en Android e iOS compatibles.
 
 ## Desarrollo
 
@@ -21,14 +25,14 @@ npm install
 npm run dev
 ```
 
-## Compilación
+## Producción
 
 ```bash
 npm run build
 ```
 
-El resultado se genera en `dist/` y puede publicarse como sitio estático en Render.
+Render publica `dist/` y despliega automáticamente desde `main`.
 
-## Arquitectura prevista
+## Alcance técnico
 
-La PWA será el cliente móvil/escritorio. En la siguiente etapa se añadirá una API para usuarios, brigadas, misiones, recorridos, observaciones, archivos y control de calidad; posteriormente se incorporarán detección automática y comparación temporal.
+SLTM es una herramienta de levantamiento preliminar y operativo. La precisión depende del dispositivo, condiciones GNSS, permisos del navegador y metodología de campo. No sustituye topografía certificada ni dictámenes técnicos especializados.
