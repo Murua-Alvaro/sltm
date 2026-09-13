@@ -1,0 +1,12 @@
+{
+  "name": "Sistema de Levantamiento Territorial Móvil",
+  "short_name": "SLTM",
+  "description": "Captura territorial georreferenciada desde dispositivos móviles y escritorio.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f2ed",
+  "theme_color": "#171a18",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
