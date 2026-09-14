@@ -1,9 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './terrain-extra.css';
-import TerrainInventory from './TerrainInventory';
+import FieldLiveApp from './FieldLiveApp';
 
-createRoot(document.getElementById('root')).render(<TerrainInventory />);
+createRoot(document.getElementById('root')).render(<FieldLiveApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
