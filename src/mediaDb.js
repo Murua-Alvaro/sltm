@@ -42,14 +42,16 @@ export async function prepareImage(file, { maxDimension = 1600, quality = 0.82 }
 }
 
 export async function saveMedia(id, file) {
+  const stored = await prepareImage(file);
   const db = await openDb();
   await new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ id, blob: file, name: file.name || 'evidencia.jpg', type: file.type || 'image/jpeg', size: file.size || 0, createdAt: new Date().toISOString() });
+    tx.objectStore(STORE).put({ id, blob: stored, name: stored?.name || file?.name || 'evidencia.jpg', type: stored?.type || file?.type || 'image/jpeg', size: stored?.size || file?.size || 0, originalSize: file?.size || 0, createdAt: new Date().toISOString() });
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error || new Error('No fue posible guardar la evidencia'));
   });
   db.close();
+  return { id, size: stored?.size || 0, originalSize: file?.size || 0, name: stored?.name || file?.name || 'evidencia.jpg' };
 }
 
 export async function getMedia(id) {
