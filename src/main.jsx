@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import InstrumentedOpsApp from './InstrumentedOpsApp';
+import HybridFieldApp from './HybridFieldApp';
 
-createRoot(document.getElementById('root')).render(<InstrumentedOpsApp />);
+createRoot(document.getElementById('root')).render(<HybridFieldApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
