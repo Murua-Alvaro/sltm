@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import ModernFieldApp from './ModernFieldApp';
+import InstrumentedOpsApp from './InstrumentedOpsApp';
 
-createRoot(document.getElementById('root')).render(<ModernFieldApp />);
+createRoot(document.getElementById('root')).render(<InstrumentedOpsApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
