@@ -45,6 +45,11 @@ export async function pullWorkspace() {
   return { terrains: t.terrains || [], visits: v.visits || [] };
 }
 
+export async function fetchAudit() {
+  if (!API) return null;
+  return request(`/api/workspaces/${WORKSPACE_ID}/audit`);
+}
+
 function enqueue(op) {
   const q = readQueue();
   if (op.type === 'terrain') {
@@ -63,47 +68,58 @@ export function queueTerrain(terrain) {
 }
 
 export function queueVisitBundle(terrainId, visit) {
-  enqueue({ type: 'visit', terrainId, visit });
-  for (const ev of visit.evidence || []) {
-    enqueue({ type: 'evidence', terrainId, visitId: visit.id, evidenceId: ev.id, metadata: ev });
-  }
+  const q = readQueue();
+  if (!q.some(x => x.type === 'visit' && x.visit?.id === visit.id)) q.push({ queueId:id(), createdAt:new Date().toISOString(), type:'visit', terrainId, visit });
+  for (const ev of visit.evidence || []) if (!q.some(x => x.type === 'evidence' && x.evidenceId === ev.id)) q.push({ queueId:id(), createdAt:new Date().toISOString(), type:'evidence', terrainId, visitId:visit.id, evidenceId:ev.id, metadata:ev });
+  writeQueue(q);
+  flushQueue();
 }
 
 let flushing = false;
+async function execute(op) {
+  if (op.type === 'terrain') {
+    await request(`/api/workspaces/${WORKSPACE_ID}/terrains/${encodeURIComponent(op.terrainId)}`, {
+      method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(op.terrain)
+    });
+    return;
+  }
+  if (op.type === 'visit') {
+    await request(`/api/workspaces/${WORKSPACE_ID}/visits`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terrainId: op.terrainId, visit: op.visit })
+    });
+    return;
+  }
+  if (op.type === 'evidence') {
+    const media = await getMedia(op.evidenceId);
+    if (!media?.blob) throw new Error('Archivo local de evidencia no disponible');
+    const fd = new FormData();
+    fd.append('file', media.blob, media.name || 'evidencia.jpg');
+    fd.append('evidenceId', op.evidenceId);
+    fd.append('terrainId', op.terrainId);
+    fd.append('visitId', op.visitId || '');
+    fd.append('metadata', JSON.stringify(op.metadata || {}));
+    await request(`/api/workspaces/${WORKSPACE_ID}/evidence`, { method: 'POST', body: fd });
+  }
+}
+
 export async function flushQueue() {
   if (flushing || !API || !navigator.onLine) { emit({ pending: readQueue().length }); return; }
   flushing = true; emit({ syncing: true, backend: true });
   try {
-    let q = readQueue();
-    while (q.length) {
+    while (true) {
+      const q = readQueue();
+      if (!q.length) break;
       const op = q[0];
       try {
-        if (op.type === 'terrain') {
-          await request(`/api/workspaces/${WORKSPACE_ID}/terrains/${encodeURIComponent(op.terrainId)}`, {
-            method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(op.terrain)
-          });
-        } else if (op.type === 'visit') {
-          await request(`/api/workspaces/${WORKSPACE_ID}/visits`, {
-            method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ terrainId: op.terrainId, visit: op.visit })
-          });
-        } else if (op.type === 'evidence') {
-          const media = await getMedia(op.evidenceId);
-          if (!media?.blob) throw new Error('Archivo local de evidencia no disponible');
-          const fd = new FormData();
-          fd.append('file', media.blob, media.name || 'evidencia.jpg');
-          fd.append('evidenceId', op.evidenceId);
-          fd.append('terrainId', op.terrainId);
-          fd.append('visitId', op.visitId || '');
-          fd.append('metadata', JSON.stringify(op.metadata || {}));
-          await request(`/api/workspaces/${WORKSPACE_ID}/evidence`, { method: 'POST', body: fd });
-        }
-        q.shift(); writeQueue(q);
+        await execute(op);
+        const fresh = readQueue();
+        writeQueue(fresh.filter(x => x.queueId !== op.queueId));
       } catch (err) {
-        emit({ backend: false, error: err.message, pending: q.length });
+        emit({ backend: false, error: err.message, pending: readQueue().length });
         break;
       }
     }
-    if (!q.length) emit({ backend: true, syncedAt: new Date().toISOString(), pending: 0 });
+    if (!readQueue().length) emit({ backend: true, syncedAt: new Date().toISOString(), pending: 0 });
   } finally {
     flushing = false; emit({ syncing: false, pending: readQueue().length });
   }
@@ -118,6 +134,10 @@ export async function openRemoteEvidence(evidenceId) {
 
 export function exportUrl() {
   return API ? `${API}/api/workspaces/${WORKSPACE_ID}/export` : null;
+}
+
+export function exportGeoJsonUrl() {
+  return API ? `${API}/api/workspaces/${WORKSPACE_ID}/export.geojson` : null;
 }
 
 window.addEventListener('online', () => { emit({ online: true }); flushQueue(); });
