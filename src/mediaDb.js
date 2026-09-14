@@ -18,6 +18,29 @@ function openDb() {
   });
 }
 
+export async function prepareImage(file, { maxDimension = 1600, quality = 0.82 } = {}) {
+  if (!file || !file.type?.startsWith('image/')) return file;
+  if (file.size <= 1.8 * 1024 * 1024 && /image\/(jpeg|webp)/i.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) return file;
+    const base = (file.name || 'evidencia').replace(/\.[^.]+$/, '');
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+}
+
 export async function saveMedia(id, file) {
   const db = await openDb();
   await new Promise((resolve, reject) => {
