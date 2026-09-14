@@ -1,8 +1,8 @@
 import { getMedia } from './mediaDb';
 
-export const WORKSPACE_ID = 'oe-mazatlan-demo-2026-09';
+export const WORKSPACE_ID = 'sltm-campo-real-2026-09';
 const API = (import.meta.env.VITE_SLTM_API_URL || '').replace(/\/$/, '');
-const QUEUE_KEY = 'sltm_sync_queue_v1';
+const QUEUE_KEY = 'sltm_sync_queue_real_v1';
 
 const readQueue = () => {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
