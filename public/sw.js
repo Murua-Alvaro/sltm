@@ -1,8 +1,21 @@
-const VERSION = 'sltm-v3';
+const VERSION = 'sltm-v4';
 const CORE = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
+async function primeShell() {
+  const cache = await caches.open(VERSION);
+  await cache.addAll(CORE);
+  try {
+    const response = await fetch('/', { cache: 'no-store' });
+    if (!response.ok) return;
+    const html = await response.clone().text();
+    await cache.put('/', response);
+    const assets = [...html.matchAll(/(?:src|href)=["'](\/assets\/[^"']+)["']/g)].map(m => m[1]);
+    await Promise.allSettled([...new Set(assets)].map(url => cache.add(url)));
+  } catch {}
+}
+
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
+  event.waitUntil(primeShell().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -36,13 +49,28 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request).then(response => {
-      if (response.ok) {
+  const isNavigation = event.request.mode === 'navigate';
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request).then(response => {
         const copy = response.clone();
-        caches.open(VERSION).then(cache => cache.put(event.request, copy));
-      }
-      return response;
-    }).catch(async () => (await caches.match(event.request)) || (await caches.match('/')))
+        caches.open(VERSION).then(cache => cache.put('/', copy));
+        return response;
+      }).catch(() => caches.match('/'))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then(cached => {
+      const network = fetch(event.request).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(VERSION).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() => cached);
+      return cached || network;
+    })
   );
 });
