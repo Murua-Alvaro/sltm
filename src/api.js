@@ -64,7 +64,8 @@ function enqueue(op) {
 }
 
 export function queueTerrain(terrain) {
-  enqueue({ type: 'terrain', terrainId: terrain.id, terrain });
+  const { visits: _visits, fieldPoints: _fieldPoints, ...terrainOnly } = terrain || {};
+  enqueue({ type: 'terrain', terrainId: terrainOnly.id, terrain: terrainOnly });
 }
 
 export function queueVisitBundle(terrainId, visit) {
