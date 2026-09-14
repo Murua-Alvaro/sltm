@@ -75,6 +75,21 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+app.get('/api/workspaces/:workspace/audit', async (req, res) => {
+  const { workspace } = req.params;
+  if (!workspaceOk(workspace)) return res.status(400).json({ error: 'workspace inválido' });
+  const r = await pool.query(`
+    select
+      (select count(*)::int from terrains where workspace_id=$1) as terrains,
+      (select count(*)::int from visits where workspace_id=$1) as visits,
+      (select count(*)::int from evidence where workspace_id=$1) as evidence,
+      (select coalesce(sum(octet_length(bytes)),0)::bigint from evidence where workspace_id=$1) as evidence_bytes,
+      (select max(updated_at) from terrains where workspace_id=$1) as last_terrain_update,
+      (select max(created_at) from visits where workspace_id=$1) as last_visit
+  `,[workspace]);
+  res.json({ workspace, ...r.rows[0] });
+});
+
 app.get('/api/workspaces/:workspace/terrains', async (req, res) => {
   const { workspace } = req.params;
   if (!workspaceOk(workspace)) return res.status(400).json({ error: 'workspace inválido' });
@@ -140,6 +155,33 @@ app.get('/api/workspaces/:workspace/export', async (req, res) => {
     pool.query('select evidence_id,terrain_id,visit_id,mime_type,filename,metadata,created_at,octet_length(bytes) as size from evidence where workspace_id=$1 order by created_at',[workspace])
   ]);
   res.json({ workspace, exportedAt: new Date().toISOString(), terrains: terrains.rows, visits: visits.rows, evidence: evidence.rows });
+});
+
+app.get('/api/workspaces/:workspace/export.geojson', async (req, res) => {
+  const { workspace } = req.params;
+  if (!workspaceOk(workspace)) return res.status(400).json({ error: 'workspace inválido' });
+  const [terrains, visits] = await Promise.all([
+    pool.query('select terrain_id,payload from terrains where workspace_id=$1 order by terrain_id',[workspace]),
+    pool.query('select visit_id,terrain_id,payload from visits where workspace_id=$1 order by created_at',[workspace])
+  ]);
+  const features = [];
+  for (const row of terrains.rows) {
+    const t = row.payload || {};
+    if (Array.isArray(t.poly) && t.poly.length >= 3) {
+      const ring = t.poly.map(p => [Number(p[1]), Number(p[0])]);
+      if (ring.length && (ring[0][0] !== ring.at(-1)[0] || ring[0][1] !== ring.at(-1)[1])) ring.push([...ring[0]]);
+      features.push({ type:'Feature', geometry:{ type:'Polygon', coordinates:[ring] }, properties:{ featureType:'terrain', terrainId:row.terrain_id, name:t.name||row.terrain_id, status:t.status||null, use:t.use||null, area:t.area||null, slope:t.slope||null, permeable:t.permeable||null, built:t.built||null, access:t.access||null, change:t.change||null, drainage:t.drainage||null, vegetation:t.vegetation||null, fill:t.fill||null } });
+    }
+  }
+  for (const row of visits.rows) {
+    const v = row.payload || {};
+    if (Array.isArray(v.track) && v.track.length >= 2) features.push({ type:'Feature', geometry:{ type:'LineString', coordinates:v.track.map(p => [Number(p.lng),Number(p.lat),Number.isFinite(p.alt)?Number(p.alt):0]) }, properties:{ featureType:'visit_track', terrainId:row.terrain_id, visitId:row.visit_id, date:v.date||null, mode:v.mode||null, distance:v.distance||null, quality:v.quality||null, avgAcc:v.avgAcc||null } });
+    for (const [i,p] of (v.points||[]).entries()) if (Number.isFinite(p.lat) && Number.isFinite(p.lng)) features.push({ type:'Feature', geometry:{ type:'Point', coordinates:[Number(p.lng),Number(p.lat),Number.isFinite(p.alt)?Number(p.alt):0] }, properties:{ featureType:'observation', terrainId:row.terrain_id, visitId:row.visit_id, observationIndex:i+1, kind:p.kind||null, note:p.note||null, accuracy:p.acc||null, timestamp:p.at||null, heading:p.heading||null } });
+    for (const e of (v.evidence||[])) if (Number.isFinite(e?.gps?.lat) && Number.isFinite(e?.gps?.lng)) features.push({ type:'Feature', geometry:{ type:'Point', coordinates:[Number(e.gps.lng),Number(e.gps.lat),Number.isFinite(e.gps.alt)?Number(e.gps.alt):0] }, properties:{ featureType:'evidence', terrainId:row.terrain_id, visitId:row.visit_id, evidenceId:e.id, timestamp:e.at||null, accuracy:e.gps.acc||null, heading:e.gps.heading||null } });
+  }
+  res.setHeader('Content-Type','application/geo+json; charset=utf-8');
+  res.setHeader('Content-Disposition',`attachment; filename="sltm-${workspace}.geojson"`);
+  res.json({ type:'FeatureCollection', name:`SLTM ${workspace}`, features });
 });
 
 app.use((err, _req, res, _next) => {
