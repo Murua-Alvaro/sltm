@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import SmartTraverseApp from './SmartTraverseApp';
+import DemoApp from './DemoApp';
 
-createRoot(document.getElementById('root')).render(<SmartTraverseApp />);
+createRoot(document.getElementById('root')).render(<DemoApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
