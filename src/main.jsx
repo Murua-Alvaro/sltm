@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import DemoApp from './DemoApp';
+import RealSiteApp from './RealSiteApp';
 
-createRoot(document.getElementById('root')).render(<DemoApp />);
+createRoot(document.getElementById('root')).render(<RealSiteApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
