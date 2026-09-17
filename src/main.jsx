@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import RealSiteApp from './RealSiteApp';
+import FieldFlowApp from './FieldFlowApp';
 
-createRoot(document.getElementById('root')).render(<RealSiteApp />);
+createRoot(document.getElementById('root')).render(<FieldFlowApp />);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
